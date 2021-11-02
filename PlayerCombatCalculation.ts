@@ -73,7 +73,7 @@ function localVarReplacer(str: string, row: number, leadingMatch: boolean) {
         }
         const intReferenceRow = parseInt(referenceRow, 10);
         if (isFixedRow || (intReferenceRow < row - 2) || intReferenceRow < startOffset) {
-            return `${start}sheet.getRange("${referenceColumn}${referenceRow}").getValue()`;
+            return `${start}getRange('${referenceColumn}${referenceRow}').value`;
         }
         const index = identifyIndex(intReferenceRow, row);
         if (index) {
@@ -89,7 +89,7 @@ function translateVars(str: string, row: number): string {
 }
 
 function externalVarReplacer(_: unknown, externalSheetName: string, cellReference: string): string {
-    return `spreadsheet.getSheetByName('${externalSheetName}').getRange('${cellReference}').getValue()`;
+    return `getRange('${cellReference}', '${externalSheetName}').value`;
 };
 
 function translateExternalVars(str: string): string {
@@ -114,7 +114,7 @@ function translateRanges(str: string, row: number): string {
             throw new Error(`Unhandled range expression in "${str}"\nUnhandled expression: "${match}"`)
         }
         if (lhs.isFixedRow) {
-            return `sheet.getRange('${match}').getValues()`;
+            return `getRange('${match}').values`;
         }
         // In practice the sheet doesn't contain any multi-row ranges that aren't fixed
         if (lhs.referenceRow === rhs.referenceRow) {
@@ -256,7 +256,18 @@ const vlookup_ = `function VLOOKUP(value, matrix, returnColumn) {
 const functionOpen = 'function RunPlayerCombatCalculation() {';
 const functionClose = '}';
 const spreadsheet = '    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet()';
-const sheet = '    const sheet = spreadsheet.getSheetByName("Player Combat Calc");';
+const sheets = `
+    const sheets = {};
+    function getRange(rangeName, sheetName = 'Player Combat Calc') {
+        const sheet = sheets[sheetName] || { sheet: spreadsheet.getSheetByName(sheetName), ranges: {} };
+        sheets[sheetName] = sheet;
+        if (!sheet.ranges[rangeName]) {
+            const apiRange = sheet.sheet.getRange(rangeName);
+            sheet.ranges[rangeName] = { value: apiRange.getValue(), values: apiRange.getValues() };
+        }
+        return sheet.ranges[rangeName];
+    }
+`
 
 // The bulk of relevant named ranges are single-cell. Special casing known exceptions.
 const setRanges = `
@@ -284,7 +295,7 @@ function main() {
         vlookup_,
         functionOpen,
         spreadsheet,
-        sheet,
+        sheets,
         setRanges,
         initializeColumnArrays(r0),
         translateRow(r0, r0.rowOffset, 1),
