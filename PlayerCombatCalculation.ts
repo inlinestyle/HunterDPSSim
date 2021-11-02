@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import { Row, r0, r1, r2, r3 } from './copypasta';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -292,7 +293,7 @@ function main() {
         translateRow(r3, r3.rowOffset, 500),
         functionClose,
     ];
-    for (const str of output) { console.log(str); }
+    fs.writeFileSync('output.js', output.join('\n'), { flag: 'w+' });
 }
 
 main();
