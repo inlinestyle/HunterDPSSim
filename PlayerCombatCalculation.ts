@@ -133,6 +133,13 @@ function translateRanges(str: string, row: number): string {
     });
 }
 
+function translateNamedRanges(str: string): string {
+    return str.replace(/(.?)(?<!['"\[\]:.A-Za-z])([A-Z]\w{2,})(?!['"\[\]:.(A-Za-z])(.?)/g, (match: string, before: string, name: string, after: string): string => {
+        if (before === ' ' && after === ' ') return match;
+        return `${before}getNamedRange('${name}')${after}`;
+    });
+}
+
 function handleCellEdgeCases(cell: string): string {
     switch (cell) {
         case '':
@@ -158,6 +165,7 @@ function translateRow(row: Row, rowStart: number, iterations: number): string {
         translation = translateRanges(translation, row.rowOffset);
         translation = translateVars(translation, row.rowOffset);
         translation = translateExternalVars(translation);
+        translation = translateNamedRanges(translation);
         columns.push([columnString, translation]);
     }
     const linearizedColumns = linearizeRowColumns(columns);
@@ -270,15 +278,17 @@ const sheets = `
 `
 
 // The bulk of relevant named ranges are single-cell. Special casing known exceptions.
-const setRanges = `
-    for (const range of spreadsheet.getNamedRanges()) {
-        const name = range.getName();
-        if (name === 'CLReferenceTable') {
-            this[name] = range.getRange().getValues();
-        } else {
-            this[name] = range.getRange().getValue();
+const namedRanges = `
+    const namedRanges = Object.fromEntries(spreadsheet.getNamedRanges().map(range => [range.getName(), range]));
+    const namedRangeValues = {};
+    function getNamedRange(rangeName) {
+        if (!(rangeName in namedRangeValues)) {
+            const range = namedRanges[rangeName].getRange();
+            namedRangeValues[rangeName] = (rangeName === 'CLReferenceTable') ? range.getValues() : range.getValue();
         }
-    }`;
+        return namedRangeValues[rangeName];
+    }
+`;
 
 function main() {
     const output: string[] = [
@@ -296,7 +306,7 @@ function main() {
         functionOpen,
         spreadsheet,
         sheets,
-        setRanges,
+        namedRanges,
         initializeColumnArrays(r0),
         translateRow(r0, r0.rowOffset, 1),
         translateRow(r1, r1.rowOffset, 1),
