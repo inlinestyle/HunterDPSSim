@@ -73,7 +73,7 @@ function localVarReplacer(str: string, row: number, leadingMatch: boolean) {
         }
         const intReferenceRow = parseInt(referenceRow, 10);
         if (isFixedRow || (intReferenceRow < row - 2) || intReferenceRow < startOffset) {
-            return `${start}getRange('${referenceColumn}${referenceRow}').value`;
+            return `${start}getRangeValue('${referenceColumn}${referenceRow}')`;
         }
         const index = identifyIndex(intReferenceRow, row);
         if (index) {
@@ -89,7 +89,7 @@ function translateVars(str: string, row: number): string {
 }
 
 function externalVarReplacer(_: unknown, externalSheetName: string, cellReference: string): string {
-    return `getRange('${cellReference}', '${externalSheetName}').value`;
+    return `getRangeValue('${cellReference}', '${externalSheetName}')`;
 };
 
 function translateExternalVars(str: string): string {
@@ -114,7 +114,7 @@ function translateRanges(str: string, row: number): string {
             throw new Error(`Unhandled range expression in "${str}"\nUnhandled expression: "${match}"`)
         }
         if (lhs.isFixedRow) {
-            return `getRange('${match}').values`;
+            return `getRangeValues('${match}')`;
         }
         // In practice the sheet doesn't contain any multi-row ranges that aren't fixed
         if (lhs.referenceRow === rhs.referenceRow) {
@@ -266,14 +266,27 @@ const functionClose = '}';
 const spreadsheet = '    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet()';
 const sheets = `
     const sheets = {};
-    function getRange(rangeName, sheetName = 'Player Combat Calc') {
+    function getRangeValue(rangeName, sheetName = 'Player Combat Calc') {
+        rangeName = rangeName.replace(/\$/g, '');
         const sheet = sheets[sheetName] || { sheet: spreadsheet.getSheetByName(sheetName), ranges: {} };
         sheets[sheetName] = sheet;
-        if (!sheet.ranges[rangeName]) {
-            const apiRange = sheet.sheet.getRange(rangeName);
-            sheet.ranges[rangeName] = { value: apiRange.getValue(), values: apiRange.getValues() };
+        const range = sheet.ranges[rangeName] || {};
+        sheet.ranges[rangeName] = range;
+        if (!('value' in range)) {
+            range.value = sheet.sheet.getRange(rangeName).getValue();
         }
-        return sheet.ranges[rangeName];
+        return range.value;
+    }
+    function getRangeValues(rangeName, sheetName = 'Player Combat Calc') {
+        rangeName = rangeName.replace(/\$/g, '');
+        const sheet = sheets[sheetName] || { sheet: spreadsheet.getSheetByName(sheetName), ranges: {} };
+        sheets[sheetName] = sheet;
+        const range = sheet.ranges[rangeName] || {};
+        sheet.ranges[rangeName] = range;
+        if (!('values' in range)) {
+            range.values = sheet.sheet.getRange(rangeName).getValues();
+        }
+        return range.values;
     }
 `
 
