@@ -267,7 +267,7 @@ const spreadsheet = '    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet
 const sheets = `
     const sheets = {};
     function getRangeValue(rangeName, sheetName = 'Player Combat Calc') {
-        rangeName = rangeName.replace(/\$/g, '');
+        rangeName = rangeName.replace(/\\$/g, '');
         const sheet = sheets[sheetName] || { sheet: spreadsheet.getSheetByName(sheetName), ranges: {} };
         sheets[sheetName] = sheet;
         const range = sheet.ranges[rangeName] || {};
@@ -278,7 +278,7 @@ const sheets = `
         return range.value;
     }
     function getRangeValues(rangeName, sheetName = 'Player Combat Calc') {
-        rangeName = rangeName.replace(/\$/g, '');
+        rangeName = rangeName.replace(/\\$/g, '');
         const sheet = sheets[sheetName] || { sheet: spreadsheet.getSheetByName(sheetName), ranges: {} };
         sheets[sheetName] = sheet;
         const range = sheet.ranges[rangeName] || {};
